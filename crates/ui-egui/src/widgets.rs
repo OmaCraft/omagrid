@@ -44,7 +44,7 @@ pub fn tooltip_shortcut(tip: &str, mac: bool) -> Option<&'static str> {
 
 /// A ribbon tooltip: the translated command name, then its shortcut for this platform, as Excel
 /// shows them ("Bold (Ctrl+B)" on Windows, "Bold (⌘B)" on macOS).
-fn tip_text(ui: &Ui, tip: &str) -> String {
+pub(crate) fn tip_text(ui: &Ui, tip: &str) -> String {
     // A name shared with a two-line ribbon label (Czech "Automatický\nsoučet") reads as one line.
     let name = i18n::current(ui.ctx()).product_label(tip).replace('\n', " ");
     let text = match tooltip_shortcut(tip, cfg!(target_os = "macos")) {

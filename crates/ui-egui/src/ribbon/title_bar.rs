@@ -30,7 +30,7 @@ pub(super) const TITLE_BAR_H: f32 = if MAC { MAC_TITLE_BAR } else { 38.0 };
 /// The tallest title-bar controls, smaller on macOS to keep a margin in the shorter bar.
 pub(super) const TITLE_CONTROL_H: f32 = if MAC { 22.0 } else { 26.0 };
 
-/// Draws the title bar: drag/maximize, AutoSave toggle, Home/Save/Undo/Redo/More, search, share, comments and theme controls, with a centered truncated title.
+/// Draws the title bar: drag/maximize, AutoSave toggle, Home/Save/Undo/Redo/More, then the search box, comments, share and theme controls, with a centered truncated title.
 pub fn title_bar(app: &mut SheetApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let ch = TITLE_CONTROL_H;
@@ -119,13 +119,24 @@ pub fn title_bar(app: &mut SheetApp, ui: &mut Ui) {
                 }
             });
             let left_end = ui.min_rect().right();
+            let title = app.session.active().map(|d| d.display_title()).unwrap_or_default();
+            let dirty = app.session.active().is_some_and(|d| d.is_dirty());
+            // The width the whole title wants, or what the controls on the left leave it anyway.
+            let (full, dot) = title_galleys(ui.painter(), &title, dirty, f32::INFINITY, t.text);
+            let title_half = ((full.size().x + dot.map_or(0.0, |d| d.size().x)) / 2.0).min(rect.center().x - left_end - TITLE_GAP).max(0.0);
+            // Left → right: search box, Comments, Share, Dark Mode (laid out right to left).
             let right = ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add_space(8.0);
-                let __k = icon_button(ui, Icon::Search, t.text_dim, "Search commands", vec2(28.0, ch));
-                control_keytip(app, ui, &__k, "commandSearch");
-                if __k.clicked() {
-                    app.open_dialog("commandSearch", json!({}));
+                // Quick light/dark switch (#194); right-click offers System as well. The same
+                // choice lives in File › Display theme and the View tab.
+                let lang = app.ui.language;
+                let theme = icon_button(ui, Icon::Appearance, t.text_dim, "Dark Mode", vec2(28.0, 26.0));
+                let dark = ui.ctx().theme() == egui::Theme::Dark;
+                theme.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, dark, lang.tr("Dark Mode")));
+                if theme.clicked() {
+                    act(app, "view.darkMode", json!({}));
                 }
+                theme.context_menu(|ui| theme_choices(app, ui));
                 let share = small_button(ui, Icon::Share, "Share", "Share: export or save a copy", true);
                 egui::Popup::menu(&share).show(|ui| {
                     if ui.button("Export as PDF…").clicked() {
@@ -144,25 +155,50 @@ pub fn title_bar(app: &mut SheetApp, ui: &mut Ui) {
                 if __k.clicked() {
                     app.open_dialog("comments", json!({}));
                 }
-                // Quick light/dark switch (#194); right-click offers System as well. The same
-                // choice lives in File › Display theme and the View tab.
-                let lang = app.ui.language;
-                let theme = icon_button(ui, Icon::Appearance, t.text_dim, "Dark Mode", vec2(28.0, 26.0));
-                let dark = ui.ctx().theme() == egui::Theme::Dark;
-                theme.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, dark, lang.tr("Dark Mode")));
-                if theme.clicked() {
-                    act(app, "view.darkMode", json!({}));
+                // The search box takes what the whole title leaves, down to its minimum, before
+                // the title starts to truncate; below that it collapses to an icon button.
+                let room = ui.min_rect().left() - ui.spacing().item_spacing.x - (rect.center().x + title_half + TITLE_GAP);
+                let search = match search_box_width(room) {
+                    Some(w) => search_box(ui, lang.tr("Search commands"), vec2(w, ch)),
+                    None => icon_button(ui, Icon::Search, t.text_dim, "Search commands", vec2(28.0, ch)),
+                };
+                search.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, lang.tr("Search commands")));
+                control_keytip(app, ui, &search, "commandSearch");
+                if search.clicked() {
+                    app.open_dialog("commandSearch", json!({}));
                 }
-                theme.context_menu(|ui| theme_choices(app, ui));
                 ui.min_rect().left()
             });
             // Centred title, cut with "…" so it never runs under the controls on either side.
-            let title = app.session.active().map(|d| d.display_title()).unwrap_or_default();
-            let dirty = app.session.active().is_some_and(|d| d.is_dirty());
             let max_w = title_max_width(rect.center().x, left_end, right.inner);
             paint_title(ui, rect.center(), &title, dirty, max_w, t.text);
         });
     });
+}
+
+/// The title-bar search box at its full width, and the narrowest it gets before collapsing.
+const SEARCH_BOX_W: f32 = 260.0;
+
+const SEARCH_BOX_MIN_W: f32 = 140.0;
+
+/// The search box width for `room` (what the right cluster can spare before the title would
+/// truncate): full width, shrunk down to the minimum, or `None` for the collapsed icon button.
+fn search_box_width(room: f32) -> Option<f32> {
+    if room >= SEARCH_BOX_MIN_W { Some(room.min(SEARCH_BOX_W)) } else { None }
+}
+
+/// A box-shaped button that looks like a search field: icon, then the placeholder cut with "…".
+fn search_box(ui: &mut Ui, placeholder: &str, size: egui::Vec2) -> egui::Response {
+    let t = Tokens::get(ui.ctx());
+    let (r, resp) = ui.allocate_exact_size(size, Sense::click());
+    ui.painter().rect(r, 6.0, if resp.hovered() { t.input_bg } else { t.ribbon }, Stroke::new(1.0, t.input_border), StrokeKind::Inside);
+    crate::icons::paint(ui.painter(), egui::Rect::from_center_size(pos2(r.min.x + 16.0, r.center().y), vec2(16.0, 16.0)), Icon::Search, t.text_dim);
+    let mut job = egui::text::LayoutJob::simple_singleline(placeholder.to_string(), theme::ui_font(12.5), t.text_dim);
+    job.wrap = egui::text::TextWrapping::truncate_at_width((r.width() - 30.0 - 8.0).max(0.0));
+    let galley = ui.painter().layout_job(job);
+    let top = r.center().y - galley.size().y / 2.0;
+    ui.painter().galley(pos2(r.min.x + 30.0, top), galley, t.text_dim);
+    resp.on_hover_text(crate::widgets::tip_text(ui, "Search commands"))
 }
 
 /// Lay out the title truncated to fit `max_w` together with the unsaved marker (when `dirty`).
@@ -225,6 +261,17 @@ mod title_bar_tests {
         assert_eq!(title_max_width(500.0, 100.0, 650.0), 2.0 * (150.0 - TITLE_GAP));
         // Controls overlapping the centre leave no room rather than a negative width.
         assert_eq!(title_max_width(500.0, 520.0, 900.0), 0.0);
+    }
+
+    #[test]
+    fn search_box_shrinks_then_collapses_to_an_icon() {
+        assert_eq!(search_box_width(400.0), Some(260.0));
+        assert_eq!(search_box_width(260.0), Some(260.0));
+        assert_eq!(search_box_width(200.0), Some(200.0));
+        assert_eq!(search_box_width(140.0), Some(140.0));
+        assert_eq!(search_box_width(139.9), None);
+        assert_eq!(search_box_width(-50.0), None);
+        assert_eq!(search_box_width(f32::NAN), None);
     }
 
     /// Lay out a title in a real egui frame, returning (title text, title width, dot width).
