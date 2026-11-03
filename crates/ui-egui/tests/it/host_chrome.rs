@@ -63,3 +63,24 @@ fn turning_the_file_tab_off_closes_an_open_backstage() {
     h.run_steps(3);
     assert!(h.state().backstage.is_none(), "and closes when the host turns the File tab off");
 }
+
+#[test]
+fn the_search_box_ends_at_the_title_bar_actions_slot() {
+    // kittest draws the app inside an 8 pt outer margin, so this harness gives the app exactly a
+    // 1440×900 window whose left/top edge sits at (8, 8).
+    const MARGIN: f32 = 8.0;
+    let mut session = Session::new();
+    session.new_workbook();
+    let app = crate::common::prepare(SheetApp::new(session, Services::default()));
+    let mut h = crate::common::builder().with_size(egui::vec2(1440.0 + 2.0 * MARGIN, 900.0 + 2.0 * MARGIN)).build_ui_state(
+        |ui, app: &mut SheetApp| {
+            let ctx = ui.ctx().clone();
+            app.logic(&ctx);
+            app.ui(ui);
+        },
+        app,
+    );
+    h.run_steps(4);
+    let right = h.get_by_label("Search commands").rect().right() - MARGIN;
+    assert!((right - 1140.0).abs() <= 0.5, "the search box's right edge sits 300 pt from the window's right edge, at {right}");
+}

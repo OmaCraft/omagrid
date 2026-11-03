@@ -155,9 +155,15 @@ pub fn title_bar(app: &mut SheetApp, ui: &mut Ui) {
                 if __k.clicked() {
                     app.open_dialog("comments", json!({}));
                 }
-                // The search box takes what the whole title leaves, down to its minimum, before
-                // the title starts to truncate; below that it collapses to an icon button.
-                let room = ui.min_rect().left() - ui.spacing().item_spacing.x - (rect.center().x + title_half + TITLE_GAP);
+                // The search box ends where the actions slot starts (padding with empty space when
+                // the actions are narrower), or directly left of them when they need more. It takes
+                // what the whole title leaves, down to its minimum, before the title starts to
+                // truncate; below that it collapses to an icon button. `natural` is where the next
+                // widget would end (right to left: the cursor's right edge).
+                let natural = ui.cursor().right();
+                let pad = search_box_pad(natural, rect.right());
+                ui.add_space(pad);
+                let room = natural - pad - (rect.center().x + title_half + TITLE_GAP);
                 let search = match search_box_width(room) {
                     Some(w) => search_box(ui, lang.tr("Search commands"), vec2(w, ch)),
                     None => icon_button(ui, Icon::Search, t.text_dim, "Search commands", vec2(28.0, ch)),
@@ -174,6 +180,16 @@ pub fn title_bar(app: &mut SheetApp, ui: &mut Ui) {
             paint_title(ui, rect.center(), &title, dirty, max_w, t.text);
         });
     });
+}
+
+/// The width reserved at the right of the title bar for the actions (theme, Share, Comments and
+/// the padding after them); the search box's right edge sits at its left edge.
+const TITLE_ACTIONS_SLOT: f32 = 300.0;
+
+/// The empty space between the search box and the actions, which would otherwise end the box at
+/// `natural`: enough to put its right edge at the actions slot, none when the actions are wider.
+fn search_box_pad(natural: f32, bar_right: f32) -> f32 {
+    (natural - (bar_right - TITLE_ACTIONS_SLOT)).max(0.0)
 }
 
 /// The title-bar search box at its full width, and the narrowest it gets before collapsing.
@@ -261,6 +277,16 @@ mod title_bar_tests {
         assert_eq!(title_max_width(500.0, 100.0, 650.0), 2.0 * (150.0 - TITLE_GAP));
         // Controls overlapping the centre leave no room rather than a negative width.
         assert_eq!(title_max_width(500.0, 520.0, 900.0), 0.0);
+    }
+
+    #[test]
+    fn search_box_ends_at_the_actions_slot_unless_they_need_more() {
+        // Narrow actions: padded out to the slot.
+        assert_eq!(search_box_pad(1340.0, 1440.0), 200.0);
+        assert_eq!(1340.0 - search_box_pad(1340.0, 1440.0), 1440.0 - TITLE_ACTIONS_SLOT);
+        // Actions exactly the slot or wider (long translations): directly left of them.
+        assert_eq!(search_box_pad(1140.0, 1440.0), 0.0);
+        assert_eq!(search_box_pad(1000.0, 1440.0), 0.0);
     }
 
     #[test]
