@@ -94,3 +94,32 @@ is ready for root review; it has not been pushed.
 
 ## 2026-11-01 Claude upstream review corrections
 Cargo lock regenerated to match manifests: remove updater-only graph, restore pinned craft-platform; preserve all Windows dependency edges from both parents. Original --locked metadata fails101; corrected full --locked metadata passes0 on Linux cargo1.98.0. Restored Flatpak bundle no-debuginfo; renamed UI VBA notice to OmaGrid while retaining upstream engine/format wording. Archived unsupported FreeBSD packager behind explanatory exit2 entrypoint. Full four-thread cargo xtask ci passes all10 steps on corrected source; exact clean commit rerun pending. Claude independently reviewed conflict resolutions/lock and accepted scope: source/test Linux candidate, no runtime/public approval. No deployment.
+
+## Alpha 3 upstream integration in progress (2026-11-05)
+
+On `codex/alpha-3`, merged upstream GridCraft v0.16.1, exact commit
+`e581bc95b2a17d2a744a115478a20a1c2ad1ef72`, over alpha2 base
+`e99245ed23ae65b110792c5b5716952b26b08ca0` with `--no-commit`. Downstream version is
+`0.16.1-oma.1.alpha.1`. The merge is resolved and staged for review; it is not committed or pushed.
+
+Conflict decisions: retained OmaGrid identity README and package-managed update notice; kept the
+new upstream math crate and equation UI while preserving Omarchy font exports and document-font
+helpers; retained the app-specific slicer document palette; merged the macOS graphics guard with
+Oma Wayland/X11 policy; retained the attribution rows for both the generated OmaGrid icons and
+new upstream PDF metric notices. Removed `craft-update` from manifests/lock. `craft-ui`,
+`craft-window`, and `craft-print` use release revision `c5a1cbf`; `craft-platform` remains pinned to
+`92d392c` for the live Omarchy appearance integration. The original `assets/omagrid-icon` files
+and app packaging references were not changed.
+
+The added OCI packaging helper now uses `omagrid-$OMA_VERSION`, defaults to
+`ghcr.io/ustaaa/omagrid`, and publishes only with explicit `--push`; no push was run. Active
+upstream updater references are absent. The upstream release workflow remains `.upstream` and is
+not enabled.
+
+Checks on this macOS host: `cargo fmt --all -- --check` passed;
+`cargo metadata --offline --locked --no-deps --format-version 1` passed;
+`bash -n packaging/linux/flatpak-oci.sh packaging/linux/flatpak-bundle.sh` passed;
+`git diff --check` passed. Full offline Cargo metadata could not check the pinned `craft-ui` git
+source because it is not cached; no dependency fetch/install, compile, or tests were run.
+Full `cargo +1.98.0 xtask ci` and `cargo +1.98.0 build --locked --release -p gridcraft -p gridcraft-cli` remain pending on the designated Linux x86_64 build host.
+No NUC contact or runtime validation was performed.
