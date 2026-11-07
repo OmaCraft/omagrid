@@ -38,10 +38,10 @@
     <keyword>xlsx</keyword>
     <keyword>csv</keyword>
   </keywords>
-  <!-- Original OmaGrid icon colours; see tools/omagrid-icon.py. -->
+  <!-- OmaCraft alpha 4 icon colours; see omacraft/scripts/icon_art.py. -->
   <branding>
-    <color type="primary" scheme_preference="light">#70d4bb</color>
-    <color type="primary" scheme_preference="dark">#191f29</color>
+    <color type="primary" scheme_preference="light">#2BC48A</color>
+    <color type="primary" scheme_preference="dark">#1E222A</color>
   </branding>
   <requires>
     <display_length compare="ge">760</display_length>
