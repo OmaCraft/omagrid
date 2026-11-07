@@ -71,7 +71,7 @@ epaint_default_fonts = "0.37"
 # driver. Same release-compatible craft-libs revision as craft-ui.
 # OmaCraft suite chrome: bundled Inter/Inter Tabular/Instrument Sans, the system-font resolver and
 # the shared type scale. Its `egui = "0.37"` resolves through the fork patch below.
-omacraft-ui = { git = "https://github.com/OmaCraft/omacraft-ui", rev = "e2cea2b3ebd238ca518871f1bea3f96b8842d98e" }
+omacraft-ui = { git = "https://github.com/OmaCraft/omacraft-ui", rev = "655c0a2b99bedf303364406030a1385a35a3d4cd" }
 craft-window = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "c5a1cbfb5f9049f9270955caffb5bee5997aebf7", default-features = false, features = ["egui"] }
 
 [workspace.lints.rust]
