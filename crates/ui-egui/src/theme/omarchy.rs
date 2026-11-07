@@ -1,5 +1,6 @@
-use super::{Color32, FontDefinitions, FontFamily, Tokens, UI, UI_BOLD, contrast};
-use crate::omarchy::{FontFace, Palette, blend};
+use super::{Color32, FontDefinitions, Tokens, contrast};
+use crate::omacraft::ChromeFonts;
+use crate::omarchy::{Palette, blend};
 
 fn palette_id() -> egui::Id {
     egui::Id::unique("omagrid.appearance.palette")
@@ -101,25 +102,19 @@ fn readable(color: Color32, bg: Color32, ratio: f32) -> Color32 {
     target
 }
 
-pub(crate) fn set_omarchy_fonts(ctx: &egui::Context, fonts: Option<(FontFace, FontFace)>) -> bool {
-    let previous = ctx.data(|d| d.get_temp::<(FontFace, FontFace)>(fonts_id()));
+pub(crate) fn set_omarchy_fonts(ctx: &egui::Context, fonts: ChromeFonts) -> bool {
+    let previous = ctx.data(|d| d.get_temp::<ChromeFonts>(fonts_id())).unwrap_or_default();
     if previous == fonts {
         return false;
     }
-    ctx.data_mut(|d| {
-        if let Some(fonts) = fonts {
-            d.insert_temp(fonts_id(), fonts);
-        } else {
-            d.remove::<(FontFace, FontFace)>(fonts_id());
-        }
-    });
+    ctx.data_mut(|d| d.insert_temp(fonts_id(), fonts));
     true
 }
 
 /// Reuse the exact current document font set; a chrome refresh must never rerun discovery,
 /// clear the bound-family registry, or briefly display workbook fallback faces.
-pub(crate) fn refresh_omarchy_fonts(ctx: &egui::Context, fonts: Option<(FontFace, FontFace)>) -> bool {
-    if ctx.data(|d| d.get_temp::<(FontFace, FontFace)>(fonts_id())) == fonts {
+pub(crate) fn refresh_omarchy_fonts(ctx: &egui::Context, fonts: ChromeFonts) -> bool {
+    if ctx.data(|d| d.get_temp::<ChromeFonts>(fonts_id())).unwrap_or_default() == fonts {
         return false;
     }
     let Some(base) = ctx.data(|d| d.get_temp::<FontDefinitions>(base_fonts_id())) else { return false };
@@ -128,26 +123,22 @@ pub(crate) fn refresh_omarchy_fonts(ctx: &egui::Context, fonts: Option<(FontFace
     true
 }
 
-/// Prefix only UI roles; CELL/MONO/SERIF and workbook-specific chains remain byte-for-byte intact.
+/// Install the OmaCraft chrome fonts (bundled Inter, the detected system faces and the "Use
+/// system font" switch) into UI roles only; CELL/MONO/SERIF, document-ui and workbook-specific
+/// chains remain byte-for-byte intact.
 pub(crate) fn with_omarchy_fonts(ctx: &egui::Context, mut fonts: FontDefinitions) -> FontDefinitions {
     ctx.data_mut(|d| d.insert_temp(base_fonts_id(), fonts.clone()));
-    if let Some((normal, bold)) = ctx.data(|d| d.get_temp::<(FontFace, FontFace)>(fonts_id())) {
-        for (role, face) in [(UI, normal), (UI_BOLD, bold)] {
-            let key = format!("omagrid-{role}");
-            let blob: egui::epaint::text::Blob = face.bytes;
-            fonts.font_data.insert(key.clone(), std::sync::Arc::new(egui::FontData::from_blob(blob, face.index)));
-            fonts.families.entry(FontFamily::Name(role.into())).or_default().insert(0, key);
-        }
-        if let Some(ui) = fonts.families.get(&FontFamily::Name(UI.into())).cloned() {
-            fonts.families.insert(FontFamily::Proportional, ui);
-        }
-    }
+    let chrome = ctx.data(|d| d.get_temp::<ChromeFonts>(fonts_id())).unwrap_or_default();
+    crate::omacraft::install(&mut fonts, &chrome, &[]);
     fonts
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::{UI, UI_BOLD};
+    use egui::FontFamily;
+
     #[test]
     fn palette_survives_reapply_and_never_changes_paper_tokens() {
         let ctx = egui::Context::default();
@@ -176,6 +167,21 @@ mod tests {
         assert!(contrast(t.sel_border, t.grid_bg) >= 3.0);
     }
 
+    /// A "detected" system face (an egui default face standing in), as UI stack and mono.
+    fn system_chrome(base: &FontDefinitions, use_system_font: bool) -> ChromeFonts {
+        let data = base.font_data.values().next().unwrap();
+        let face = omacraft_ui::fonts::SystemFace {
+            family: "Stand-in Sans".into(),
+            path: "/usr/share/fonts/stand-in.ttf".into(),
+            index: data.index,
+            data: std::sync::Arc::new(data.bytes().to_vec()),
+        };
+        ChromeFonts {
+            options: omacraft_ui::FontOptions { use_system_font },
+            system: omacraft_ui::SystemFaces { ui: vec![face.clone()], ui_bold: vec![], mono: Some(face) },
+        }
+    }
+
     #[test]
     fn live_font_refresh_preserves_bound_workbook_and_document_faces_on_every_pass() {
         let _guard = crate::fonts::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -184,18 +190,19 @@ mod tests {
         let workbook_role = "omagrid-regression-workbook";
         let document = FontFamily::Name(super::super::DOCUMENT_UI.into());
         let document_bold = FontFamily::Name(super::super::DOCUMENT_UI_BOLD.into());
-        assert_eq!(base.families[&document], base.families[&FontFamily::Name(UI.into())]);
-        assert_eq!(base.families[&document_bold], base.families[&FontFamily::Name(UI_BOLD.into())]);
+        // Document drawing keeps upstream's interface chain; only chrome gets Inter.
+        assert_eq!(base.families[&FontFamily::Name(UI.into())][0], omacraft_ui::fonts::keys::INTER);
+        for family in [&document, &document_bold] {
+            assert!(!base.families[family].iter().any(|k| k.starts_with("omacraft/")), "{family:?}");
+        }
         let workbook = FontFamily::Name(workbook_role.into());
         base.families.insert(workbook.clone(), base.families[&document].clone());
         crate::fonts::set_bound(base.families.keys().filter_map(|family| match family {
             FontFamily::Name(name) => Some(name.to_string()),
             _ => None,
         }));
-        let data = base.font_data.values().next().unwrap();
-        let face = FontFace { bytes: std::sync::Arc::new(data.bytes().to_vec()), index: data.index };
         ctx.set_fonts(with_omarchy_fonts(&ctx, base.clone()));
-        for desired in [Some((face.clone(), face)), None] {
+        for desired in [system_chrome(&base, true), ChromeFonts::default()] {
             assert!(refresh_omarchy_fonts(&ctx, desired));
             let cached = ctx.data(|d| d.get_temp::<FontDefinitions>(base_fonts_id())).unwrap();
             assert_eq!(cached.families, base.families);
@@ -217,18 +224,22 @@ mod tests {
         let _guard = crate::fonts::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let ctx = egui::Context::default();
         let original = super::super::pinned_font_definitions();
-        let data = original.font_data.values().next().unwrap();
-        let face = FontFace { bytes: std::sync::Arc::new(data.bytes().to_vec()), index: data.index };
-        assert!(set_omarchy_fonts(&ctx, Some((face.clone(), face.clone()))));
-        assert!(!set_omarchy_fonts(&ctx, Some((face.clone(), face))));
+        let chrome = system_chrome(&original, true);
+        assert!(set_omarchy_fonts(&ctx, chrome.clone()));
+        assert!(!set_omarchy_fonts(&ctx, chrome));
         let changed = with_omarchy_fonts(&ctx, original.clone());
+        let chrome_families = [FontFamily::Proportional, FontFamily::Monospace, FontFamily::Name(UI.into()), FontFamily::Name(UI_BOLD.into())];
         for (family, chain) in &original.families {
-            if !matches!(family, FontFamily::Proportional) && family != &FontFamily::Name(UI.into()) && family != &FontFamily::Name(UI_BOLD.into()) {
+            if !chrome_families.contains(family) && !matches!(family, FontFamily::Name(n) if n.starts_with("omacraft.")) {
                 assert_eq!(changed.families.get(family), Some(chain), "{family:?}");
             }
         }
-        assert_eq!(changed.families[&FontFamily::Name(UI.into())][0], "omagrid-ui");
-        assert!(set_omarchy_fonts(&ctx, None));
+        // "Use system font": the system face leads the UI chain, Inter follows; mono is the system mono.
+        let ui = &changed.families[&FontFamily::Name(UI.into())];
+        assert!(ui[0].starts_with("system/"), "{ui:?}");
+        assert_eq!(ui[1], omacraft_ui::fonts::keys::INTER);
+        assert!(changed.families[&FontFamily::Monospace][0].starts_with("system/"));
+        assert!(set_omarchy_fonts(&ctx, ChromeFonts::default()));
         assert_eq!(with_omarchy_fonts(&ctx, original.clone()).families, original.families);
     }
 }

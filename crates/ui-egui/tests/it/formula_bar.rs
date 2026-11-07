@@ -3,9 +3,9 @@
 use egui::{Event, Key, Modifiers, Rect, vec2};
 use gridcraft_engine::Session;
 use gridcraft_engine::core::{CellRef, Value};
+use gridcraft_ui_egui::SheetApp;
 use gridcraft_ui_egui::formula_bar::{BarLayout, MAX_LINES, one_line};
 use gridcraft_ui_egui::widgets::{Lang, code_editor};
-use gridcraft_ui_egui::{SheetApp, theme};
 use serde_json::json;
 
 type Harness = egui_kittest::Harness<'static, SheetApp>;
@@ -56,7 +56,8 @@ fn layout(h: &Harness) -> BarLayout {
 }
 
 fn row_height(h: &Harness) -> f32 {
-    h.ctx.fonts_mut(|f| f.row_height(&theme::ui_font(13.0)))
+    // OmaCraft: the formula bar edits in the mono role (system mono).
+    h.ctx.fonts_mut(|f| f.row_height(&gridcraft_ui_egui::omacraft::Role::Mono.font()))
 }
 
 fn same(a: Rect, b: Rect) -> bool {

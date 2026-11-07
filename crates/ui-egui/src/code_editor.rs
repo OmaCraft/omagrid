@@ -8,7 +8,7 @@ use std::ops::Range;
 use egui::text::{CCursor, CCursorRange};
 use egui::{FontFamily, FontId, Key, Response, TextEdit, Ui};
 
-use crate::theme::{self, Syntax, Tokens};
+use crate::theme::{Syntax, Tokens};
 
 /// The language a code editor colours.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -204,7 +204,7 @@ fn color(s: &Syntax, token: Token) -> egui::Color32 {
 
 /// The code editor's font: the monospace face at 12.5 px.
 pub fn font() -> FontId {
-    FontId::new(12.5, FontFamily::Name(theme::MONO.into()))
+    FontId::new(12.5, FontFamily::Monospace)
 }
 
 /// A layout job for `text` with syntax colours.

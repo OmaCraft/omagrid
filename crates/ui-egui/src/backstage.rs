@@ -216,7 +216,7 @@ pub fn show(app: &mut SheetApp, ui: &mut Ui) {
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             egui::Frame::NONE.inner_margin(egui::Margin { left: 44, right: 32, top: 26, bottom: 32 }).show(ui, |ui| {
                 ui.set_max_width(CONTENT_W);
-                ui.label(RichText::new(lang.tr(bs.page.label())).font(theme::ui_font(28.0)).color(t.text));
+                ui.label(RichText::new(lang.tr(bs.page.label())).font(crate::omacraft::Role::DisplayL.font()).color(t.text));
                 ui.add_space(18.0);
                 match bs.page {
                     Page::Home => home(app, ui, &mut bs, &mut out),
@@ -295,13 +295,13 @@ fn nav_separator(ui: &mut Ui, text: Color32) {
 fn section(ui: &mut Ui, lang: Language, title: &str) {
     let t = Tokens::get(ui.ctx());
     ui.add_space(6.0);
-    ui.label(RichText::new(lang.tr(title)).font(theme::ui_bold(15.0)).color(t.text));
+    ui.label(RichText::new(lang.tr(title)).font(crate::omacraft::Role::Section.font()).color(t.text));
     ui.add_space(8.0);
 }
 
 fn dim(ui: &mut Ui, text: &str) {
     let t = Tokens::get(ui.ctx());
-    ui.label(RichText::new(text).font(theme::ui_font(12.5)).color(t.text_dim));
+    ui.label(RichText::new(text).font(crate::omacraft::Role::Caption.font()).color(t.text_dim));
 }
 
 /// A new-workbook tile: a small sheet drawn in code over its name.
@@ -798,7 +798,7 @@ fn account(app: &mut SheetApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let lang = app.ui.language;
     section(ui, lang, "Product Information");
-    ui.label(RichText::new("OmaGrid").font(theme::ui_bold(16.0)).color(t.text));
+    ui.label(RichText::new("OmaGrid").font(crate::omacraft::Role::DisplayM.font()).color(t.text));
     ui.add_space(8.0);
     egui::Grid::new("backstage_account").num_columns(2).spacing(vec2(18.0, 8.0)).show(ui, |ui| {
         for (label, value) in [

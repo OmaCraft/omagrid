@@ -592,7 +592,7 @@ pub fn message_box(app: &mut SheetApp, ctx: &egui::Context) {
             ui.painter().circle_filled(r.center(), 16.0, t.warning);
             ui.painter().text(r.center(), Align2::CENTER_CENTER, "!", theme::ui_bold(20.0), t.on_warning);
             ui.vertical(|ui| {
-                ui.label(egui::RichText::new(title).strong());
+                ui.label(crate::omacraft::text(title, crate::omacraft::Role::DialogTitle));
                 ui.add(egui::Label::new(msg).wrap());
             });
         });

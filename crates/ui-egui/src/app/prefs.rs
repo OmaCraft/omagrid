@@ -11,12 +11,16 @@ impl SheetApp {
         self.omarchy = omarchy::Watcher::start();
     }
 
-    /// Poll only cached worker state. Manual Light/Dark keeps the original palette and fonts.
+    /// Poll only cached worker state. Manual Light/Dark keeps the original palette. Chrome fonts
+    /// (bundled Inter, the detected system faces, "Use system font") do not depend on the mode.
     pub(super) fn sync_omarchy(&mut self, ctx: &egui::Context) {
         self.omarchy_snapshot = self.omarchy.current(ctx);
         let palette = self.ui.system_theme.then_some(self.omarchy_snapshot.palette).flatten();
         theme::set_omarchy_palette(ctx, palette);
-        let fonts = palette.and(self.omarchy_snapshot.fonts.clone());
+        let fonts = crate::omacraft::ChromeFonts {
+            options: crate::omacraft::FontOptions { use_system_font: self.ui.use_system_font },
+            system: self.omarchy_snapshot.fonts.clone().unwrap_or_default(),
+        };
         // egui activates a font set on the next pass. Only spend that blank paint gate on an
         // idle frame: physical text/IME, paste, held drags and active editors must not lose input.
         if self.chrome_font_reload_is_idle(ctx) && theme::refresh_omarchy_fonts(ctx, fonts) {
@@ -106,10 +110,9 @@ mod tests {
         let _guard = crate::fonts::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let ctx = egui::Context::default();
         let base = theme::pinned_font_definitions();
-        let data = base.font_data.values().next().unwrap();
-        let face = omarchy::FontFace { bytes: std::sync::Arc::new(data.bytes().to_vec()), index: data.index };
         ctx.set_fonts(theme::with_omarchy_fonts(&ctx, base));
-        assert!(theme::refresh_omarchy_fonts(&ctx, Some((face.clone(), face))));
+        let switched = crate::omacraft::ChromeFonts { options: crate::omacraft::FontOptions { use_system_font: true }, ..Default::default() };
+        assert!(theme::refresh_omarchy_fonts(&ctx, switched));
         let mut session = gridcraft_engine::Session::new();
         session.new_workbook();
         let mut app = SheetApp::new(session, crate::Services::default());

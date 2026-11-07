@@ -25,6 +25,8 @@ image = { workspace = true }
 skrifa = { workspace = true }
 web-time = { workspace = true }
 toml = "1"
+# OmaCraft: suite fonts and type scale (thin adapter in `src/omacraft.rs`).
+omacraft-ui = { workspace = true }
 
 # Linux only: use the suite's cancellable XDG appearance watcher at the existing craft-libs pin.
 [target.'cfg(target_os = "linux")'.dependencies]

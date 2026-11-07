@@ -554,7 +554,7 @@ pub(crate) fn paint_headers(
     quads: &[PaneQuad],
     headings: &[TableHeading],
 ) {
-    let font = theme::ui_font(heading_font_size(geo.z));
+    let font = crate::omacraft::numeric(heading_font_size(geo.z));
     // The headers' own area: inside the outline bands.
     let r = Rect::from_min_max(pos2(geo.head_left(), geo.head_top()), geo.rect.max);
     let top = Rect::from_min_max(pos2(geo.cells.left(), r.top()), pos2(r.right(), geo.cells.top()));

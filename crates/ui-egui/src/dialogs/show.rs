@@ -159,7 +159,7 @@ pub fn show(app: &mut SheetApp, ctx: &egui::Context) {
         _ => 380.0,
     };
     let window_id = egui::Id::unique("dialog").with(&d.name);
-    let window = egui::Window::new(app.ui.language.product_label(&d.title))
+    let window = egui::Window::new(crate::omacraft::text(app.ui.language.product_label(&d.title), crate::omacraft::Role::DialogTitle))
         .id(window_id)
         .collapsible(false)
         .resizable(false)

@@ -68,6 +68,7 @@ pub use clock::{monotonic_ms, now_ms};
 pub use services::{Chrome, Inbox, Services};
 pub use state::{NoticeKind, OpenWindow, SaveAnswer, SheetView};
 pub mod desktop_theme;
+pub mod omacraft;
 pub mod omarchy;
 
 /// Persisted UI preferences.
@@ -95,6 +96,10 @@ pub struct UiState {
     /// AutoSave (the title-bar switch): save saved-to-file .xlsx workbooks shortly after every
     /// change. A preference like the rest of this struct — it stays on across restarts (#1901).
     pub autosave: bool,
+    /// OmaCraft "Use system font" (File ▸ Options ▸ General): chrome text uses the desktop's UI
+    /// font instead of bundled Inter. Off by default. GridCraft never stored an older font option
+    /// (the alpha 3 mono override followed the System theme implicitly), so nothing migrates.
+    pub use_system_font: bool,
     pub recent: Vec<String>,
     /// One-shot keytip request for a ribbon control: set when a keytip action resolves to
     /// [`keytips::Action::Control`], consumed (and cleared) by the control's render site.
@@ -145,6 +150,7 @@ impl Default for UiState {
             autocomplete: true,
             highlight_active_row: false,
             autosave: false,
+            use_system_font: omacraft::FontOptions::migrate(None, None).use_system_font,
             recent: vec![],
             keytip_invoke: None,
             keytip_invoke_next: None,

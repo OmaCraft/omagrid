@@ -15,6 +15,11 @@ pub(super) fn options(app: &mut SheetApp, ui: &mut Ui) {
     if ui.checkbox(&mut formula_bar, lang.tr("Show formula bar")).changed() {
         app.run_or_alert("view.formulaBar", json!({"on": formula_bar}));
     }
+    // OmaCraft: chrome text in bundled Inter unless the desktop's UI font is chosen here.
+    let mut system_font = app.ui.use_system_font;
+    if ui.checkbox(&mut system_font, lang.tr("Use system font")).changed() {
+        app.run_or_alert("options.useSystemFont", json!({"on": system_font}));
+    }
     let mut highlight_row = app.ui.highlight_active_row;
     if ui.checkbox(&mut highlight_row, lang.tr("Highlight the active cell's row")).changed() {
         app.run_or_alert("options.highlightActiveRow", json!({"on": highlight_row}));

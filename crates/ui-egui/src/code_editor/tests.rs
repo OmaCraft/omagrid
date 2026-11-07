@@ -1,4 +1,5 @@
 use super::*;
+use crate::theme;
 use egui::Modifiers;
 
 fn spans(text: &str, lang: Lang) -> Vec<(&str, Token)> {

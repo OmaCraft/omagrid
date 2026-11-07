@@ -348,6 +348,8 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
         s.text_styles.insert(egui::TextStyle::Small, ui_font(11.0));
         s.text_styles.insert(egui::TextStyle::Heading, ui_bold(18.0));
         s.text_styles.insert(egui::TextStyle::Monospace, FontId::new(12.0, FontFamily::Name(MONO.into())));
+        // OmaCraft: the suite type scale (roles, and the built-in styles on Inter / system mono).
+        crate::omacraft::apply_scale(s);
     });
 }
 

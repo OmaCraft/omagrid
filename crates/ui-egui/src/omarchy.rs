@@ -59,17 +59,12 @@ pub(crate) fn blend(a: Color32, b: Color32, amount: f32) -> Color32 {
     Color32::from_rgb(mix(a.r(), b.r()), mix(a.g(), b.g()), mix(a.b(), b.b()))
 }
 
-/// Validated font bytes are discovered/read by the worker, never by an egui frame.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct FontFace {
-    pub bytes: std::sync::Arc<Vec<u8>>,
-    pub index: u32,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Snapshot {
     pub palette: Option<Palette>,
-    pub fonts: Option<(FontFace, FontFace)>,
+    /// The system UI stack and mono (`omacraft_ui::SystemFaces`), detected and validated off the
+    /// UI thread. `None` until the first detection finishes.
+    pub fonts: Option<omacraft_ui::SystemFaces>,
 }
 
 /// Owns a bounded latest-value slot, so a sleeping/minimized UI cannot accumulate updates.
@@ -79,6 +74,9 @@ pub(crate) struct Watcher {
     last: Snapshot,
     #[cfg(target_os = "linux")]
     worker: Option<native::Worker>,
+    /// Elsewhere (macOS, Windows) only the fonts are detected, once, on a short-lived thread.
+    #[cfg(not(any(target_os = "linux", target_arch = "wasm32")))]
+    fonts: Option<std::sync::Arc<std::sync::Mutex<Option<omacraft_ui::SystemFaces>>>>,
 }
 
 impl Watcher {
@@ -107,7 +105,34 @@ impl Watcher {
                 self.last = snapshot;
             }
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_arch = "wasm32")))]
+        if self.enabled {
+            let slot = self.fonts.get_or_insert_with(|| {
+                let slot = std::sync::Arc::new(std::sync::Mutex::new(None));
+                let shared = slot.clone();
+                let ctx = ctx.clone();
+                let spawned = std::thread::Builder::new().name("omagrid-fonts".into()).spawn(move || {
+                    let faces = crate::omacraft::validated(omacraft_ui::SystemFaces::detect());
+                    if let Ok(mut value) = shared.lock() {
+                        *value = Some(faces);
+                    }
+                    ctx.request_repaint();
+                });
+                if spawned.is_err() {
+                    // Never retry spawning once per frame; the bundled faces stay in use.
+                    if let Ok(mut value) = slot.lock() {
+                        *value = Some(omacraft_ui::SystemFaces::default());
+                    }
+                }
+                slot
+            });
+            if self.last.fonts.is_none()
+                && let Ok(value) = slot.try_lock()
+            {
+                self.last.fonts = value.clone();
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
         let _ = (ctx, self.enabled);
         self.last.clone()
     }

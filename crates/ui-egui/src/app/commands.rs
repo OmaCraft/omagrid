@@ -202,6 +202,10 @@ impl SheetApp {
                 self.ui.autocomplete = p.get("on").and_then(Json::as_bool).unwrap_or(!self.ui.autocomplete);
                 Ok(json!({"on": self.ui.autocomplete}))
             }
+            "options.useSystemFont" => {
+                self.ui.use_system_font = p.get("on").and_then(Json::as_bool).unwrap_or(!self.ui.use_system_font);
+                Ok(json!({"on": self.ui.use_system_font}))
+            }
             "options.highlightActiveRow" => {
                 self.ui.highlight_active_row = p.get("on").and_then(Json::as_bool).unwrap_or(!self.ui.highlight_active_row);
                 Ok(json!({"on": self.ui.highlight_active_row}))

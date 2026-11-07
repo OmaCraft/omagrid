@@ -443,7 +443,7 @@ pub fn status_bar(app: &mut SheetApp, ui: &mut Ui) {
                     for p in selection_statistics(app).into_iter().rev() {
                         let value = p.split_once(": ").map_or(p.as_str(), |(_, v)| v).to_owned();
                         let resp = ui.add(
-                            egui::Label::new(egui::RichText::new(p).font(theme::ui_font(12.5)).color(t.text_dim))
+                            egui::Label::new(egui::RichText::new(p).font(crate::omacraft::Role::Numeric.font()).color(t.text_dim))
                                 .selectable(false)
                                 .sense(Sense::click()),
                         );

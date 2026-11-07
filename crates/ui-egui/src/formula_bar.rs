@@ -89,7 +89,7 @@ pub struct EditorInfo {
 /// Draws the formula bar: line-count-driven height, Name Box, cancel/enter/Fx buttons, the editable field, muted read-only spill text and the expansion chevron.
 pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
-    let font = theme::ui_font(13.0);
+    let font = crate::omacraft::Role::Mono.font();
     let row_h = ui.ctx().fonts_mut(|f| f.row_height(&font));
     let last = BarLayout::get(ui.ctx());
     // Height follows the content's line count (last frame's), 1 to MAX_LINES; expanded (the

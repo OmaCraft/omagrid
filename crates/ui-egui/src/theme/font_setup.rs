@@ -531,6 +531,10 @@ fn font_definitions_impl(language: crate::i18n::Language, used: &[String], syste
             bound.push(document.to_string());
         }
     }
+    // OmaCraft: bundled Inter for chrome (`ui`, `ui-bold`, Proportional) in front of upstream's
+    // whole UI chain, which keeps its tested order (cell face, then script faces, then craft
+    // faces). The document copies above keep upstream's chain.
+    crate::omacraft::install(&mut fonts, &crate::omacraft::ChromeFonts::default(), &[]);
     // Only families egui still has data for count as bound (a dropped face can empty a chain).
     bound.retain(|f| fonts.families.get(&FontFamily::Name(f.as_str().into())).is_some_and(|c| !c.is_empty()));
     crate::fonts::set_bound(bound);
